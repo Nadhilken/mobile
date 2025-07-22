@@ -4,7 +4,7 @@ services:
     env: python
     preDeployCommand: ""
     buildCommand: "pip install --upgrade pip && pip install poetry==1.5.1 && poetry config virtualenvs.in-project true && poetry install"
-    startCommand: "poetry run gunicorn app:app"
+    startCommand: "./.venv/bin/gunicorn app:app"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.5
