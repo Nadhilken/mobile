@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Risk Predictions</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-6">
+    <div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+        <h1 class="text-3xl font-bold mb-6 text-center">Health Risk Predictions</h1>
+
+        <!-- Emotion Distribution Chart -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4">Emotion Distribution</h2>
+            <div id="chartContainer">
+                <canvas id="emotionChart" class="w-full"></canvas>
+                <p id="noDataMessage" class="text-red-500 text-center hidden">No valid emotion data available to display the chart.</p>
+            </div>
+        </div>
+
+        <!-- Health Predictions -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4">Predicted Health Risks</h2>
+            {% if results.health_predictions %}
+            <p class="mb-4">Based on the analysis of your emotion data, the following health risks have been identified, with likelihood percentages, contributing factors, and suggestions for improvement:</p>
+            <table class="w-full border-collapse">
+                <thead>
+                    <tr class="bg-gray-200">
+                        <th class="border p-2">Health Risk</th>
+                        <th class="border p-2">Likelihood</th>
+                        <th class="border p-2">Explanation</th>
+                        <th class="border p-2">Suggestions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for prediction in results.health_predictions %}
+                    <tr>
+                        <td class="border p-2">{{ prediction['Risk'] }}</td>
+                        <td class="border p-2">{{ prediction['Likelihood'] | round(1) }}%</td>
+                        <td class="border p-2">{{ prediction['Explanation'] }}</td>
+                        <td class="border p-2">{{ prediction['Suggestions'] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-red-500">No significant health risks detected based on the provided emotion data.</p>
+            {% endif %}
+        </div>
+
+        <!-- Emotion Summary Table -->
+        <div class="mb-8">
+            <h2 class="text-xl font-semibold mb-4">Emotion Summary</h2>
+            <p class="mb-4">The following table summarizes the emotions detected in your data, used to generate the health predictions:</p>
+            <table class="w-full border-collapse">
+                <thead>
+                    <tr class="bg-gray-200">
+                        <th class="border p-2">Emotion</th>
+                        <th class="border p-2">Proportion (%)</th>
+                        <th class="border p-2">Average Confidence</th>
+                        <th class="border p-2">Confidence Fluctuation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in results.emotion_summary %}
+                    <tr>
+                        <td class="border p-2">{{ row['Emotion'] }}</td>
+                        <td class="border p-2">{{ row['Proportion'] | round(1) }}</td>
+                        <td class="border p-2">{{ row['Avg Confidence'] | round(1) }}</td>
+                        <td class="border p-2">{{ row['Std Confidence'] | round(1) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <a href="/" class="block text-center bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Upload Another File</a>
+    </div>
+
+    <!-- Rendering Chart.js Bar Chart -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('emotionChart').getContext('2d');
+            const noDataMessage = document.getElementById('noDataMessage');
+            let emotionData;
+            try {
+                emotionData = {{ results.emotion_distribution | tojson | safe }};
+                if (!emotionData || typeof emotionData !== 'object' || Object.keys(emotionData).length === 0) {
+                    throw new Error('Invalid or empty emotion distribution data');
+                }
+                // Validate that values are non-negative numbers
+                const invalidValues = Object.values(emotionData).some(val => typeof val !== 'number' || val < 0);
+                if (invalidValues) {
+                    throw new Error('Emotion proportions must be non-negative numbers');
+                }
+            } catch (e) {
+                console.error('Error parsing emotion data:', e);
+                noDataMessage.classList.remove('hidden');
+                return; // Exit to prevent chart rendering
+            }
+
+            // Prepare data for Chart.js
+            const labels = Object.keys(emotionData);
+            const data = Object.values(emotionData);
+
+            // Define color mapping for emotions
+            const colorMap = {
+                'angry': '#EF4444',    // Red
+                'disgust': '#6B7280',  // Gray
+                'fear': '#EC4899',     // Pink
+                'happy': '#10B981',    // Green
+                'sad': '#3B82F6',      // Blue
+                'surprise': '#8B5CF6', // Purple
+                'neutral': '#F59E0B'   // Orange
+            };
+            const backgroundColors = labels.map(label => colorMap[label.toLowerCase()] || '#6B7280');
+
+            // Hide no-data message and render chart
+            noDataMessage.classList.add('hidden');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Emotion Proportion (%)',
+                        data: data,
+                        backgroundColor: backgroundColors,
+                        borderColor: '#1F2937',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Proportion (%)' }
+                        },
+                        x: {
+                            title: { display: true, text: 'Emotion' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
